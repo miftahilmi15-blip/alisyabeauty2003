@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with loyalty levels and contact details.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "level": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum"] },
+        "points": { "type": "integer" },
+        "whatsapp": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A Salon appointment reservation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "service": { "type": "string" },
+        "bookingDate": { "type": "string" },
+        "bookingTime": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "done", "cancelled"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "customerName", "whatsapp", "email", "service", "bookingDate", "bookingTime", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "User reviews and star ratings for treatments.",
+      "type": "object",
+      "properties": {
+        "bookingId": { "type": "string" },
+        "userId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "service": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["bookingId", "userId", "rating", "service", "userName", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "entities/UserProfile" },
+      "description": "Individual user membership profile details."
+    },
+    "bookings/{bookingId}": {
+      "schema": { "$ref": "entities/Booking" },
+      "description": "Scheduled appointment listings."
+    },
+    "reviews/{reviewId}": {
+      "schema": { "$ref": "entities/Review" },
+      "description": "Ratings provided by customers for completed appointments."
+    }
+  }
+}

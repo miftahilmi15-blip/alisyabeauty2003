@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alisya Beauty | Premium Muslimah Salon</title>
+    
+    <meta name="description" content="Alisya Beauty Premium Muslimah Salon - Booking treatment, lihat promo, gallery dan layanan terbaik untuk muslimah.">
+    <link rel="icon" href="assets/logo/favicon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body> 
+
+    <div id="loading-screen" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="login-overlay" class="overlay hidden">
+        <div class="login-card">
+            <img src="assets/logo/logo.png" alt="Alisya Beauty" class="brand-logo" onerror="this.style.display='none'">
+            <h2>Selamat Datang</h2>
+            <p>Alisya Beauty Premium Salon</p>
+            <button id="btnLogin" class="btn-google">
+                <i class="fa-brands fa-google"></i> Login dengan Google
+            </button>
+        </div>
+    </div>
+
+    <!-- Header disederhanakan (Sidebar & Text dihapus) -->
+    <header class="navbar hidden">
+        <!-- Kosong untuk menjaga layout jika diperlukan -->
+    </header>
+
+    <main id="app-container" class="hidden">
+        <section id="home-page" class="spa-page active"></section>
+        <section id="gallery-page" class="spa-page"></section>
+        <section id="booking-page" class="spa-page"></section>
+        <section id="shop-page" class="spa-page"></section>
+        <section id="profile-page" class="spa-page"></section>
+        <section id="services-page" class="spa-page"></section>
+        <section id="admin-page" class="spa-page"></section>
+    </main>
+
+    <nav id="bottom-nav" class="bottom-nav hidden">
+        <a href="#" class="nav-link active" data-page="home">
+            <i class="fa-solid fa-house"></i><span>Home</span>
+        </a>
+        <a href="#" class="nav-link" data-page="gallery">
+            <i class="fa-solid fa-images"></i><span>Gallery</span>
+        </a>
+        <a href="#" class="nav-link" data-page="booking">
+            <i class="fa-solid fa-calendar-check"></i><span>Booking</span>
+        </a>
+        <a href="#" class="nav-link" data-page="shop">
+            <i class="fa-solid fa-cart-shopping"></i><span>Shop</span>
+        </a>
+        <a href="#" class="nav-link" data-page="profile">
+            <i class="fa-solid fa-circle-user"></i><span>Profil</span>
+        </a>
+    </nav>
+
+<script type="module" src="src/app/main.js"></script>
+</body>
+</html>
