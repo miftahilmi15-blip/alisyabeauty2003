@@ -18,7 +18,7 @@ import GalleryPage from './components/GalleryPage';
 import ProfilePage from './components/ProfilePage';
 import AdminPage from './components/AdminPage';
 import Toast from './components/Toast';
-import logoImg from './assets/images/alisya_dark_logo_1780913147183.png';
+import logoImg from './assets/images/logo.png';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
