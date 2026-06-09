@@ -18,7 +18,7 @@ import GalleryPage from './components/GalleryPage';
 import ProfilePage from './components/ProfilePage';
 import AdminPage from './components/AdminPage';
 import Toast from './components/Toast';
-import logoImg from './assets/images/logo.png';
+import logoImg from './assets/logo.png';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
