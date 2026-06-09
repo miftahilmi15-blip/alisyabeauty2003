@@ -20,7 +20,7 @@ import {
   onAuthStateChanged,
   User as FbUser
 } from "firebase/auth";
-import { Treatment, Product, Booking, UserProfile, Review } from "../types";
+import { Treatment, Product, Booking, UserProfile, Review, SalonBranch } from "../types";
 
 // Default pre-populated data for a premium experience
 const DEFAULT_TREATMENTS: Treatment[] = [
@@ -630,3 +630,111 @@ export const fetchReviewedBookingIds = async (userId: string): Promise<string[]>
   const current = getLocalStorageData<Review>("reviews", DEFAULT_REVIEWS);
   return current.filter(r => r.userId === userId).map(r => r.bookingId);
 };
+
+const DEFAULT_BRANCHES: SalonBranch[] = [
+  {
+    id: "br-01",
+    name: "Alisya Premium Salon & Spa - Cirebon Arjawinangun",
+    codename: "Alisya Arjawinangun",
+    address: "Perumahan Grand Lavanda, Blok A No.1, Arjawinangun, Kec. Arjawinangun, Kabupaten Cirebon, Jawa Barat 45161",
+    googleMapsUrl: "https://share.google/hcB5b7jjdbxs7EoK1",
+    phone: "0853-9999-8888",
+    whatsapp: "6285399998888",
+    operatingHours: "09:00 - 21:00 WIB (Senin - Minggu)",
+    rating: 5.0,
+    reviewCount: 154,
+    features: ["Kamar Privat Muslimah", "Sangat Higienis", "100% Bebas Laki-Laki", "Free Fresh Drink"],
+    distance: "0.1 km",
+    estTime: "1 mnt jalan kaki",
+    coordinateX: 45,
+    coordinateY: 40,
+    branchImage: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&q=80&w=400"
+  },
+  {
+    id: "br-02",
+    name: "Alisya VIP Muslimah Salon - Depok Margonda",
+    codename: "Alisya Margonda Depok",
+    address: "Jl. Margonda Raya No. 420 (Samping Gramedia), Kec. Beji, Kota Depok, 16424",
+    googleMapsUrl: "https://maps.google.com/?q=Alisya+VIP+Salon+Margonda+Depok",
+    phone: "021-78884210",
+    whatsapp: "6285399998888",
+    operatingHours: "09:00 - 19:00 WIB (Selasa - Minggu)",
+    rating: 4.8,
+    reviewCount: 324,
+    features: ["Private Spa Room", "Kids Playground Mini", "Laktasi Ibu Menyusui", "Air Purifier Steril"],
+    distance: "15.2 km",
+    estTime: "35 mnt berkendara",
+    coordinateX: 68,
+    coordinateY: 72,
+    branchImage: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400"
+  }
+];
+
+export const fetchBranches = async (): Promise<SalonBranch[]> => {
+  if (isFirebaseWorking()) {
+    try {
+      const snap = await getDocs(collection(db, "branches"));
+      if (!snap.empty) {
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any } as SalonBranch));
+      }
+    } catch (e) {
+      console.warn("Firestore fetchBranches failed, using localStorage fallback:", e);
+    }
+  }
+  return getLocalStorageData<SalonBranch>("branches", DEFAULT_BRANCHES);
+};
+
+export const createBranch = async (b: Omit<SalonBranch, "id">): Promise<boolean> => {
+  const newB: SalonBranch = {
+    ...b,
+    id: `br_${Date.now()}`
+  };
+
+  if (isFirebaseWorking()) {
+    try {
+      await addDoc(collection(db, "branches"), {
+        name: b.name,
+        codename: b.codename,
+        address: b.address,
+        googleMapsUrl: b.googleMapsUrl,
+        phone: b.phone,
+        whatsapp: b.whatsapp,
+        operatingHours: b.operatingHours,
+        rating: b.rating || 5.0,
+        reviewCount: b.reviewCount || 1,
+        features: b.features,
+        distance: b.distance || "1.0 km",
+        estTime: b.estTime || "5 mnt berkendara",
+        coordinateX: b.coordinateX || 50,
+        coordinateY: b.coordinateY || 50,
+        branchImage: b.branchImage || "https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&q=80&w=400",
+        createdAt: new Date()
+      });
+      return true;
+    } catch (e) {
+      console.error("Firestore createBranch failed:", e);
+    }
+  }
+
+  const current = getLocalStorageData<SalonBranch>("branches", DEFAULT_BRANCHES);
+  current.push(newB);
+  saveLocalStorageData("branches", current);
+  return true;
+};
+
+export const deleteBranch = async (id: string): Promise<boolean> => {
+  if (isFirebaseWorking() && !id.startsWith("br_") && id !== "br-01" && id !== "br-02") {
+    try {
+      await deleteDoc(doc(db, "branches", id));
+      return true;
+    } catch (e) {
+      console.error("Firestore deleteBranch failed:", e);
+    }
+  }
+
+  const current = getLocalStorageData<SalonBranch>("branches", DEFAULT_BRANCHES);
+  const updated = current.filter(b => b.id !== id);
+  saveLocalStorageData("branches", updated);
+  return true;
+};
+

@@ -65,6 +65,25 @@ export interface LevelThreshold {
   icon: string;
 }
 
+export interface SalonBranch {
+  id: string;
+  name: string;
+  codename: string;
+  address: string;
+  googleMapsUrl: string;
+  phone: string;
+  whatsapp: string;
+  operatingHours: string;
+  rating: number;
+  reviewCount: number;
+  features: string[];
+  distance: string;
+  estTime: string;
+  coordinateX: number;
+  coordinateY: number;
+  branchImage: string;
+}
+
 export const levelConfig: Record<string, LevelThreshold> = {
   Bronze: { color: '#CD7F32', next: 'Silver', nextPts: 500, icon: '🥉' },
   Silver: { color: '#A0A0A0', next: 'Gold', nextPts: 1500, icon: '🥈' },

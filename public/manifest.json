@@ -1,0 +1,22 @@
+{
+  "name": "Alisya Beauty Premium",
+  "short_name": "Alisya Beauty",
+  "description": "Premium Muslimah Salon & Beauty Care",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#c5a059",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

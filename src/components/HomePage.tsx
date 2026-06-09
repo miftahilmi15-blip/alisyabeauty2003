@@ -5,14 +5,16 @@ import {
 } from 'lucide-react';
 import { UserProfile, Review, Treatment } from '../types';
 import { fetchReviews, fetchTreatments } from '../services/dataService';
+import MapsPage from './MapsPage';
 
 interface HomePageProps {
   userProfile: UserProfile | null;
   onNavigate: (tabId: string) => void;
   onNavigateToBooking: (treatmentName: string) => void;
+  onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export default function HomePage({ userProfile, onNavigate, onNavigateToBooking }: HomePageProps) {
+export default function HomePage({ userProfile, onNavigate, onNavigateToBooking, onShowToast }: HomePageProps) {
   const [reviewsList, setReviewsList] = useState<Review[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [filteredTreatments, setFilteredTreatments] = useState<Treatment[]>([]);
@@ -49,19 +51,19 @@ export default function HomePage({ userProfile, onNavigate, onNavigateToBooking 
     // Filter by Category
     if (selectedCategory !== "Semua") {
       result = result.filter(t => {
-        // Simple mapping rules for category classifications
         const nameLower = t.name.toLowerCase();
-        if (selectedCategory === "Rambut") {
-          return nameLower.includes("hair") || nameLower.includes("creambath") || nameLower.includes("shampoo");
+        const descLower = (t.description || "").toLowerCase();
+        if (selectedCategory === "Hair Treatment") {
+          return nameLower.includes("hair") || nameLower.includes("creambath") || nameLower.includes("shampoo") || nameLower.includes("rambut") || descLower.includes("rambut") || descLower.includes("hair") || descLower.includes("creambath");
         }
-        if (selectedCategory === "Wajah") {
-          return nameLower.includes("facial") || nameLower.includes("totok") || nameLower.includes("aura");
+        if (selectedCategory === "Facian Treatment") {
+          return nameLower.includes("facial") || nameLower.includes("totok") || nameLower.includes("aura") || nameLower.includes("wajah") || nameLower.includes("facian") || descLower.includes("wajah") || descLower.includes("facial") || descLower.includes("totok");
         }
-        if (selectedCategory === "Tubuh") {
-          return nameLower.includes("massage") || nameLower.includes("lulur") || nameLower.includes("body");
+        if (selectedCategory === "Body Treatment") {
+          return nameLower.includes("massage") || nameLower.includes("lulur") || nameLower.includes("body") || nameLower.includes("tubuh") || descLower.includes("tubuh") || descLower.includes("body") || descLower.includes("massage") || descLower.includes("lulur");
         }
-        if (selectedCategory === "Kuku") {
-          return nameLower.includes("manicure") || nameLower.includes("pedicure") || nameLower.includes("nail") || nameLower.includes("kuku");
+        if (selectedCategory === "Spa") {
+          return nameLower.includes("spa") || nameLower.includes("manicure") || nameLower.includes("pedicure") || nameLower.includes("nail") || nameLower.includes("kuku") || descLower.includes("spa") || descLower.includes("kuku") || descLower.includes("nail");
         }
         return true;
       });
@@ -79,99 +81,20 @@ export default function HomePage({ userProfile, onNavigate, onNavigateToBooking 
     setFilteredTreatments(result);
   }, [selectedCategory, searchQuery, treatments]);
 
-  const categories = ["Semua", "Rambut", "Wajah", "Tubuh", "Kuku"];
+  const categories = ["Semua", "Hair Treatment", "Facian Treatment", "Body Treatment", "Spa"];
 
   return (
     <div className="space-y-8 pb-20 text-stone-800 animate-fade-in-up relative font-sans">
       
-      {/* ======================================================== */}
-      {/* GREETING HEADER */}
-      {/* ======================================================== */}
-      <section className="flex items-center justify-between py-2 border-b border-stone-100">
-        <div className="space-y-1 text-left">
-          <span className="text-[10px] text-gold-600 uppercase tracking-widest font-black block">Assalamu'alaikum</span>
-          <h1 className="text-2xl md:text-3xl font-serif font-black text-stone-900 leading-tight">
-            Selamat Datang, <span className="text-gold-600">{firstName}</span>
-          </h1>
-        </div>
-        
-        <button 
-          onClick={() => onNavigate('profile')}
-          className="w-12 h-12 rounded-full border-2 border-gold-200 hover:border-gold-500 overflow-hidden shadow-sm active:scale-95 transition-all shrink-0 cursor-pointer"
-        >
-          <img 
-            src={userProfile?.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${firstName}`} 
-            alt="Profile Avatar"
-            className="w-full h-full object-cover"
-          />
-        </button>
-      </section>
-
-      {/* ======================================================== */}
-      {/* HERO BANNER SECTION */}
-      {/* ======================================================== */}
-      <section className="relative overflow-hidden rounded-3xl bg-stone-50 border border-stone-100 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[220px]">
-          
-          {/* Content side */}
-          <div className="p-6 md:p-8 flex flex-col justify-center space-y-4 relative z-20 lg:col-span-12 xl:col-span-7 bg-gradient-to-r from-stone-50 via-stone-50/95 to-transparent text-left">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gold-200/20 rounded-full border border-gold-550/15 text-gold-600 text-[9px] tracking-widest uppercase font-black w-fit">
-              <Sparkles className="w-3.5 h-3.5 text-gold-550 animate-pulse" /> Muslimah Luxury Salon
-            </span>
-            <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-wide leading-tight">
-              Alisya Beauty
-            </h2>
-            <p className="text-stone-600 text-xs md:text-sm font-light max-w-lg leading-relaxed font-sans">
-              Menghadirkan pelayanan kecantikan syariah paling steril, aman, halal, dan wudhu-friendly untuk wanita berhijab di Indonesia. Nikmati ketenangan ritual privat bersama terapis bersertifikasi premium kami.
-            </p>
-            <div className="pt-2">
-              <button 
-                onClick={() => onNavigate('booking')}
-                className="bg-gold-500 hover:bg-gold-600 text-[#050507] text-xs font-black px-6 py-3.5 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all uppercase tracking-widest shrink-0 cursor-pointer"
-              >
-                <CalendarHeart className="w-4 h-4 text-[#050507]" /> Reservasi Online VIP
-              </button>
-            </div>
-          </div>
-
-          {/* Illustrative image side (Desktop only, responsive split) */}
-          <div className="hidden xl:block xl:col-span-5 relative overflow-hidden bg-stone-100 border-l border-stone-100">
-            <img 
-              src="https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&q=80&w=600" 
-              alt="Premium Spa Room Setup" 
-              className="absolute inset-0 w-full h-full object-cover opacity-90 hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-stone-50/50 to-transparent" />
-            
-            {/* VIP Quick facts overlay */}
-            <div className="absolute inset-y-0 right-0 p-6 flex flex-col justify-between items-end text-right z-20">
-              <div className="bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-stone-100 space-y-0.5 shadow-sm">
-                <span className="text-[9px] text-gold-600 uppercase tracking-widest font-black block">Muslimah Private Space</span>
-                <span className="text-[11px] text-stone-800 font-bold">100% Bebas Laki-Laki</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-stone-100 shadow-sm">
-                <Star className="w-3.5 h-3.5 fill-gold-550 text-gold-550" />
-                <span className="text-[10px] text-stone-800 font-bold font-mono">5.0 VIP Rating</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
       {/* ======================================================== */}
       {/* DIRECT INTEGRATION: TREATMENT CATALOGUE (Layanan di Home) */}
       {/* ======================================================== */}
       <section className="space-y-4 pt-2">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left border-b border-stone-100 pb-4">
           <div className="space-y-1">
-            <span className="text-[9px] text-gold-600 uppercase tracking-widest font-black block">Alisya Treat Menu</span>
             <h3 className="text-xl font-serif font-black text-stone-900 flex items-center gap-2">
               <Scissors className="w-4.5 h-4.5 text-gold-550" /> Layanan Perawatan Premium
             </h3>
-            <p className="text-xs text-stone-500 max-w-xl font-sans font-light">
-              Pilih ritual kecantikan premium syari Anda. Terapis ahli bersertifikat kami melayani Anda di ruang privat mandiri.
-            </p>
           </div>
 
           {/* Search bar inside Home Services */}
@@ -362,14 +285,15 @@ export default function HomePage({ userProfile, onNavigate, onNavigateToBooking 
 
       </section>
 
+      {/* ======================================================== */}
+      {/* DIRECT INTEGRATION: INTERACTIVE SALON MAPS LOCATOR */}
+      {/* ======================================================== */}
+      <section className="pt-4 border-t border-stone-100">
+        <MapsPage onShowToast={onShowToast} />
+      </section>
+
       {/* Final CTA styling */}
-      <section className="text-center py-8 px-6 bg-gradient-to-r from-stone-50 via-stone-50/80 to-stone-50 border border-stone-100 rounded-3xl space-y-4 shadow-sm">
-        <h4 className="font-serif italic text-xl text-gold-600 md:text-2xl">
-          "Siap Tampil Cantik, Berseri, dan Percaya Diri?"
-        </h4>
-        <p className="text-xs text-stone-600 max-w-sm mx-auto leading-relaxed font-sans font-light">
-          Dapatkan keistimewaan perawatan premium terbaik oleh pakar kecantikan Muslimah profesional. Tempat terbatas untuk menjaga eksklusivitas.
-        </p>
+      <section className="text-center py-6">
         <button 
           onClick={() => onNavigate('booking')}
           className="bg-gold-500 hover:bg-gold-600 text-[#050507] text-xs font-black px-7 py-3 rounded-xl shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2 active:scale-95 cursor-pointer uppercase tracking-wider"

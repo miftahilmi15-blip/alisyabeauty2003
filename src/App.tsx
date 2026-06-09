@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, ShieldCheck, Heart, HelpCircle, Loader2, Play, 
-  CheckCircle, Info, Lock, ChevronRight, User, AlertTriangle 
+  CheckCircle, Info, Lock, ChevronRight, User, AlertTriangle,
+  Eye, EyeOff
 } from 'lucide-react';
 import { auth, provider } from './config/firebase';
 import { signInWithPopup, signOut as fbSignOut, onAuthStateChanged } from 'firebase/auth';
@@ -17,8 +18,9 @@ import ShopPage from './components/ShopPage';
 import GalleryPage from './components/GalleryPage';
 import ProfilePage from './components/ProfilePage';
 import AdminPage from './components/AdminPage';
+import MapsPage from './components/MapsPage';
 import Toast from './components/Toast';
-import logoImg from './assets/logo.png';
+import logoImg from './assets/images/logo.png';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -33,7 +35,13 @@ export default function App() {
   // Login input states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<{ code: string; message: string; title: string; hint: string } | null>(null);
+
+  // Email Registration states
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [registerName, setRegisterName] = useState("");
+  const [registerWhatsapp, setRegisterWhatsapp] = useState("");
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
@@ -141,19 +149,145 @@ export default function App() {
     }
   };
 
-  const handlePasswordLogin = (e: React.FormEvent) => {
+  const handlePasswordRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registerName.trim() || !email.trim() || !password.trim()) {
+      showToast("Nama, Email, dan Password wajib diisi.", "error");
+      return;
+    }
+
+    if (password.length < 6) {
+      showToast("Password minimal 6 karakter.", "error");
+      return;
+    }
+
+    let registeredWithFirebase = false;
+    if (auth) {
+      try {
+        const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: registerName });
+        
+        await fetchUserProfile(userCredential.user.uid, {
+          displayName: registerName,
+          email: email
+        });
+        if (registerWhatsapp) {
+          await updateUserWhatsapp(userCredential.user.uid, registerWhatsapp);
+        }
+        registeredWithFirebase = true;
+      } catch (err: any) {
+        console.warn("Firebase email registration failed, continuing local store fallback:", err);
+      }
+    }
+
+    try {
+      const localUsersStr = localStorage.getItem('alisya_registered_users') || '[]';
+      const localUsers = JSON.parse(localUsersStr);
+      
+      if (localUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
+        showToast("Email ini sudah terdaftar. Silakan masuk.", "error");
+        return;
+      }
+
+      localUsers.push({
+        email: email.toLowerCase(),
+        password: password,
+        displayName: registerName,
+        whatsapp: registerWhatsapp
+      });
+
+      localStorage.setItem('alisya_registered_users', JSON.stringify(localUsers));
+      
+      showToast("Pendaftaran berhasil! Akun Anda aktif. Silakan masuk sekarang.", "success");
+      setAuthMode('login');
+      setPassword("");
+    } catch {
+      showToast("Gagal mendaftarkan akun.", "error");
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       showToast("Email dan password wajib diisi.", "error");
       return;
     }
+
+    const localUsersStr = localStorage.getItem('alisya_registered_users') || '[]';
+    const localUsers = JSON.parse(localUsersStr);
     
-    // Simple verification
-    if (email === 'miftahilmi15@gmail.com' || email.toLowerCase().includes('admin')) {
-      handleLocalDemoLogin('admin');
-    } else {
-      handleLocalDemoLogin('guest');
+    const matchedLocalUser = localUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
+    const isAdminUser = email === 'miftahilmi15@gmail.com' || email.toLowerCase().includes('admin');
+
+    // 1. Authenticate local registered user first (extremely fast & robust)
+    if (matchedLocalUser) {
+      if (matchedLocalUser.password !== password) {
+        showToast("Password yang Anda masukkan salah.", "error");
+        return;
+      }
+      
+      const sampleUser: UserProfile = {
+        uid: matchedLocalUser.uid || `guest_${Date.now()}`,
+        displayName: matchedLocalUser.displayName,
+        email: matchedLocalUser.email,
+        photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
+        level: 'Bronze',
+        points: 15,
+        whatsapp: matchedLocalUser.whatsapp,
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        localStorage.setItem('alisya_local_user', JSON.stringify(sampleUser));
+        setUserProfile(sampleUser);
+        setWhatsappNum(sampleUser.whatsapp || "");
+        showToast(`Assalamu'alaikum, ${sampleUser.displayName}!`, "success");
+      } catch {
+        showToast("Gagal memproses login.", "error");
+      }
+      return;
     }
+
+    // 2. Fallback check for Local Admin login (if not found in registered users)
+    if (isAdminUser) {
+      handleLocalDemoLogin('admin');
+      return;
+    }
+
+    // 3. Try Firebase Auth sign-in if Firebase is available and user is not in local storage
+    if (auth) {
+      try {
+        const { signInWithEmailAndPassword } = await import('firebase/auth');
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const profile = await fetchUserProfile(userCredential.user.uid);
+        setUserProfile(profile);
+        setWhatsappNum(profile.whatsapp || "");
+        showToast(`Assalamu'alaikum, ${profile.displayName}!`, "success");
+        return;
+      } catch (fbErr: any) {
+        console.warn("Firebase signin error:", fbErr);
+        const code = fbErr.code || "";
+        
+        if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+          showToast("Password yang Anda masukkan salah atau email salah.", "error");
+        } else if (code === 'auth/user-not-found') {
+          showToast("Email belum terdaftar. Silakan daftar terlebih dahulu sebelum masuk.", "error");
+          setAuthMode('register');
+        } else if (code === 'auth/user-disabled') {
+          showToast("Akun Anda telah dinonaktifkan.", "error");
+        } else if (code === 'auth/too-many-requests') {
+          showToast("Terlalu banyak percobaan masuk gagal. Coba lagi nanti.", "error");
+        } else {
+          showToast("Gagal masuk. Silakan cek koneksi Anda.", "error");
+        }
+        return;
+      }
+    }
+
+    // Neither Firebase Auth nor Local Store has this user
+    showToast("Email belum terdaftar. Silakan daftar terlebih dahulu sebelum masuk.", "error");
+    setAuthMode('register');
   };
 
   // Demo Login flows to bypass blocked frame environments
@@ -250,35 +384,87 @@ export default function App() {
           <div className="space-y-3 text-center">
             <div className="w-28 h-28 mx-auto relative group">
               <img 
-                src={logo.png} 
+                src={logoImg || "logo.png"} 
                 alt="Alisya Beauty Logo" 
                 className="w-full h-full object-contain rounded-full shadow-2xl border border-[#d4af37]/40 p-1 bg-black/40 hover:border-[#d4af37] transition-all duration-500 transform hover:scale-105"
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.onerror = null;
+                  target.src = "logo.png";
+                }}
               />
             </div>
             <div className="space-y-1">
               <h1 className="text-3.5xl font-serif font-black tracking-widest text-white leading-tight">
                 Alisya Beauty
               </h1>
-              <p className="text-[10px] text-[#d4af37] bg-gold-550/10 inline-block px-4 py-1.5 rounded-full uppercase tracking-widest font-black border border-[#d4af37]/20">
-                Luxury Muslimah Salon & Spa
-              </p>
             </div>
           </div>
 
           {/* Interactive Login Card - Glassmorphism, Gold glow border, smooth layout */}
           <div className="glass rounded-3xl p-6.5 border border-[#d4af37]/25 shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_20px_rgba(212,175,55,0.05)] text-left space-y-5 animate-fade-in-up relative">
-            <div className="space-y-1 text-center border-b border-white/5 pb-3.5">
-              <h2 className="font-serif font-bold text-white text-base tracking-wide flex items-center justify-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-gold-400 shrink-0" /> Keanggotaan Shaliha
-              </h2>
-              <p className="text-[10.5px] text-stone-400 font-light">
-                Masuk untuk reservasi privat & kumpulkan poin kebaikan Anda
-              </p>
+            
+            {/* Auth Switcher Tabs (Daftar / Masuk) */}
+            <div className="flex border-b border-white/10 pb-4.5 gap-2">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('login'); setAuthError(null); }}
+                className={`flex-1 text-center pb-2 text-xs font-black tracking-widest uppercase transition-all duration-350 cursor-pointer ${
+                  authMode === 'login' 
+                    ? 'text-white border-b-2 border-[#d4af37] scale-102 font-black' 
+                    : 'text-stone-500 hover:text-stone-300 font-bold'
+                }`}
+              >
+                Masuk
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('register'); setAuthError(null); }}
+                className={`flex-1 text-center pb-2 text-xs font-black tracking-widest uppercase transition-all duration-350 cursor-pointer ${
+                  authMode === 'register' 
+                    ? 'text-white border-b-2 border-[#d4af37] scale-102 font-black' 
+                    : 'text-stone-500 hover:text-stone-300 font-bold'
+                }`}
+              >
+                Daftar
+              </button>
             </div>
 
             {/* Email-Password Login Form */}
-            <form onSubmit={handlePasswordLogin} className="space-y-4">
+            <form onSubmit={authMode === 'login' ? handlePasswordLogin : handlePasswordRegister} className="space-y-4">
+              
+              {authMode === 'register' && (
+                <>
+                  <div className="space-y-1.5 text-left animate-fade-in-up">
+                    <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
+                      Nama Lengkap
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={registerName}
+                      onChange={(e) => setRegisterName(e.target.value)}
+                      placeholder="Nama Lengkap Anda"
+                      className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)] animate-fade-in-up"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5 text-left animate-fade-in-up">
+                    <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
+                      Nomor WhatsApp
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={registerWhatsapp}
+                      onChange={(e) => setRegisterWhatsapp(e.target.value)}
+                      placeholder="Contoh: 08123456789"
+                      className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)] animate-fade-in-up"
+                    />
+                  </div>
+                </>
+              )}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
                   Email Address
@@ -300,22 +486,32 @@ export default function App() {
                   </label>
                   <span className="text-[9px] text-stone-500 hover:text-gold-200 cursor-pointer">Lupa?</span>
                 </div>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-606 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)]"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 pl-4 pr-11 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-gold-400 focus:outline-none p-1 rounded-md transition-colors cursor-pointer select-none"
+                    title={showPassword ? "Sembunyikan Password" : "Tampilkan Password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {/* Submit Main Login Button */}
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-450 text-[#050507] font-extrabold py-3 rounded-xl shadow-lg shadow-gold-500/10 text-xs uppercase tracking-widest cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5 hover:shadow-[0_0_15px_rgba(212,175,55,0.3)] mt-2"
+                className="w-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-450 text-[#050507] font-extrabold py-3 rounded-xl shadow-lg shadow-gold-500/10 text-xs uppercase tracking-widest cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5 hover:shadow-[0_0_15px_rgba(212,175,55,0.3)] mt-2 animate-fade-in-up"
               >
-                Masuk Keanggotaan
+                {authMode === 'login' ? 'Masuk Keanggotaan' : 'Daftar Keanggotaan'}
               </button>
             </form>
 
@@ -329,29 +525,29 @@ export default function App() {
 
             {/* Google official button */}
             <button
-              onClick={handleGoogleLogin}
-              className="w-full bg-white/5 hover:bg-white/10 text-stone-200 font-bold py-3 px-4 border border-white/10 hover:border-[#d4af37]/45 rounded-xl flex items-center justify-center gap-2.5 active:scale-98 transition-all uppercase tracking-wider text-[10.5px] cursor-pointer"
+               onClick={handleGoogleLogin}
+               className="w-full bg-white/5 hover:bg-white/10 text-stone-200 font-bold py-3 px-4 border border-white/10 hover:border-[#d4af37]/45 rounded-xl flex items-center justify-center gap-2.5 active:scale-98 transition-all uppercase tracking-wider text-[10.5px] cursor-pointer"
             >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#EA4335"
-                  d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.58 14.92 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.86 3c.9-2.7 3.4-4.46 6.64-4.46z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M23.49 12.27c0-.8-.07-1.56-.2-2.3H12v4.4h6.44c-.28 1.44-1.1 2.66-2.33 3.47l3.6 2.8c2.1-1.94 3.3-4.8 3.3-8.37z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.36 14.5c-.24-.7-.36-1.46-.36-2.25s.12-1.55.36-2.25L1.5 7.01C.54 8.93 0 11.07 0 13.33s.54 4.4 1.5 6.32l3.86-3.15z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c3.24 0 5.97-1.07 7.96-2.92l-3.6-2.8c-1.1.74-2.5 1.18-4.36 1.18-3.24 0-5.74-1.76-6.64-4.46L1.5 17c1.9 3.85 5.85 6.5 10.5 6.5z"
-                />
-              </svg>
-              <span>Google Authentication</span>
-            </button>
+               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                 <path
+                   fill="#EA4335"
+                   d="M12 5.04c1.64 0 3.12.56 4.28 1.67l3.2-3.2C17.52 1.58 14.92 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.86 3c.9-2.7 3.4-4.46 6.64-4.46z"
+                 />
+                 <path
+                   fill="#4285F4"
+                   d="M23.49 12.27c0-.8-.07-1.56-.2-2.3H12v4.4h6.44c-.28 1.44-1.1 2.66-2.33 3.47l3.6 2.8c2.1-1.94 3.3-4.8 3.3-8.37z"
+                 />
+                 <path
+                   fill="#FBBC05"
+                   d="M5.36 14.5c-.24-.7-.36-1.46-.36-2.25s.12-1.55.36-2.25L1.5 7.01C.54 8.93 0 11.07 0 13.33s.54 4.4 1.5 6.32l3.86-3.15z"
+                 />
+                 <path
+                   fill="#34A853"
+                   d="M12 23c3.24 0 5.97-1.07 7.96-2.92l-3.6-2.8c-1.1.74-2.5 1.18-4.36 1.18-3.24 0-5.74-1.76-6.64-4.46L1.5 17c1.9 3.85 5.85 6.5 10.5 6.5z"
+                 />
+               </svg>
+               <span>Google Authentication</span>
+             </button>
 
           </div>
 
@@ -377,6 +573,7 @@ export default function App() {
           userProfile={userProfile} 
           onNavigate={setActiveTab} 
           onNavigateToBooking={handleNavigateToBooking}
+          onShowToast={showToast}
         />
       )}
       

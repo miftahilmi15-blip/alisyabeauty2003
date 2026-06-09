@@ -106,3 +106,27 @@ body.app-page {
 ::-webkit-scrollbar-thumb:hover {
   background: #be9741;
 }
+
+/* Global rule to disable text selection and tap highlight */
+html, body, #root {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Retain normal text selection and interaction for inputs, textareas, and form elements */
+input, textarea, select, [contenteditable="true"] {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* Custom subtle selection style for active text input selection */
+input::selection, textarea::selection, [contenteditable="true"]::selection {
+  background: rgba(190, 151, 65, 0.3) !important;
+  color: inherit !important;
+}
+
