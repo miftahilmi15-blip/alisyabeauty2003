@@ -250,7 +250,7 @@ export default function App() {
           <div className="space-y-3 text-center">
             <div className="w-28 h-28 mx-auto relative group">
               <img 
-                src={logoImg} 
+                src={logo.png} 
                 alt="Alisya Beauty Logo" 
                 className="w-full h-full object-contain rounded-full shadow-2xl border border-[#d4af37]/40 p-1 bg-black/40 hover:border-[#d4af37] transition-all duration-500 transform hover:scale-105"
                 referrerPolicy="no-referrer"
