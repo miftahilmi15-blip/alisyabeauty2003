@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
-  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "Manrope", sans-serif;
+  --font-serif: "Playfair Display", "Cormorant Garamond", Georgia, serif;
   
   --color-gold-50: #fbf9f4;
   --color-gold-100: #f5f0e1;
@@ -19,14 +19,14 @@
 
 /* Custom Base Styles for Premium Feel */
 body.login-page {
-  background-color: #050507 !important;
-  color: #f5f5f5 !important;
+  background-color: #FAF9F6 !important;
+  color: #111111 !important;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 body.app-page {
-  background-color: #ffffff !important;
+  background-color: #FAF9F6 !important;
   color: #111111 !important;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -34,42 +34,100 @@ body.app-page {
 
 /* Reusable Glassmorphism and Custom Styles */
 .glass {
-  background: rgba(11, 11, 14, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(190, 151, 65, 0.2);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.7), 0 0 20px rgba(190, 151, 65, 0.08);
+  background: linear-gradient(135deg, rgba(16, 16, 20, 0.8) 0%, rgba(10, 10, 12, 0.85) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 
+    0 12px 40px -12px rgba(0, 0, 0, 0.6), 
+    0 0 24px rgba(190, 151, 65, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.liquid-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(253, 251, 247, 0.78) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 
+    0 8px 32px -4px rgba(167, 134, 59, 0.14), 
+    0 2px 8px -2px rgba(167, 134, 59, 0.05),
+    inset 0 1px 0px rgba(255, 255, 255, 0.9),
+    inset 0 -1.5px 2px rgba(167, 134, 59, 0.04);
+}
+
+.liquid-glass-highlight {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-glass-highlight::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 300%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.35) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  transition: all 0.6s ease;
+  pointer-events: none;
+}
+
+.liquid-glass-highlight:hover::after {
+  left: 150%;
 }
 
 .btn-primary {
-  background-color: #be9741;
+  background: linear-gradient(135deg, #be9741 0%, #dcc88a 100%);
   color: #050507;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 14px rgba(190, 151, 65, 0.35);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    0 6px 20px -4px rgba(190, 151, 65, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .btn-primary:hover {
-  background-color: #eadfb9;
-  box-shadow: 0 6px 20px rgba(190, 151, 65, 0.55);
+  background: linear-gradient(135deg, #eadfb9 0%, #be9741 100%);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 8px 24px -2px rgba(190, 151, 65, 0.55),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.5);
 }
 
-/* Glassmorphism styling */
+/* Glassmorphism styling updated to Liquid Glass */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.88);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.84) 0%, rgba(254, 252, 249, 0.76) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(190, 151, 65, 0.15);
-  box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 8px 28px -6px rgba(167, 134, 59, 0.11),
+    0 1px 3px -1px rgba(167, 134, 59, 0.05),
+    inset 0 1.5px 0px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(167, 134, 59, 0.03);
 }
 
 .glass-dark-effect {
-  background: rgba(18, 18, 22, 0.85);
+  background: linear-gradient(135deg, rgba(22, 22, 28, 0.8) 0%, rgba(14, 14, 18, 0.85) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 12px 36px -10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Keyframe animations */
@@ -88,23 +146,16 @@ body.app-page {
   animation: fadeInUp 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom scrollbars for elegance */
+/* Globally hide scrollbars so they are never visible */
+* {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #eadfb9;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #be9741;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Global rule to disable text selection and tap highlight */
@@ -114,6 +165,15 @@ html, body, #root {
   -moz-user-select: none;
   -ms-user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Utilitas tambahan untuk menyembunyikan scrollbar */
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
 /* Retain normal text selection and interaction for inputs, textareas, and form elements */

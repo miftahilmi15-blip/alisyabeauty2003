@@ -49,6 +49,22 @@
         "createdAt": { "type": "string" }
       },
       "required": ["bookingId", "userId", "rating", "service", "userName", "createdAt"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "Photo portfolio gallery item managed by Admin.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "category": { "type": "string", "enum": ["hair", "face", "spa", "body", "interior"] },
+        "title": { "type": "string" },
+        "desc": { "type": "string" },
+        "likes": { "type": "string" },
+        "comments": { "type": "string" },
+        "duration": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["url", "category", "title", "desc", "likes"]
     }
   },
   "firestore": {
@@ -63,6 +79,10 @@
     "reviews/{reviewId}": {
       "schema": { "$ref": "entities/Review" },
       "description": "Ratings provided by customers for completed appointments."
+    },
+    "gallery/{galleryId}": {
+      "schema": { "$ref": "entities/GalleryItem" },
+      "description": "Administrative portofolio image listings."
     }
   }
 }

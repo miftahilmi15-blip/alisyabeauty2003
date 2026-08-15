@@ -16,6 +16,19 @@ export default function Toast({ message, type, onClose }: ToastProps) {
     return () => clearTimeout(timer);
   }, [onClose]);
 
+  useEffect(() => {
+    // Native Android-like haptic tick on mount
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        if (type === 'error') {
+          navigator.vibrate([15, 60, 15]); // Double tick for warning/error
+        } else {
+          navigator.vibrate(12); // Single soft tick for success
+        }
+      } catch (_) {}
+    }
+  }, [type]);
+
   const bgClass = 
     type === 'success' 
       ? 'border-emerald-200 bg-emerald-50 text-emerald-800' 

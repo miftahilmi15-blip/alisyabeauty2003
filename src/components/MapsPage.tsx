@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MapPin, Phone, Clock, Navigation, Copy, Star, Search, 
-  Map as MapIcon, Sparkles, Shield, Compass, Heart, ExternalLink, Scissors,
+  Map as MapIcon, Sparkles, Shield, Compass, Heart, ExternalLink,
   Loader2
 } from 'lucide-react';
 import { SalonBranch } from '../types';
@@ -82,14 +82,14 @@ export default function MapsPage({ onShowToast }: MapsPageProps) {
       
       {/* Brand & Introduction Header */}
       <section className="space-y-2 text-left">
-        <span className="inline-flex items-center gap-1 bg-gold-200/20 text-gold-600 text-[9px] uppercase tracking-widest font-black px-3 py-1 rounded-full border border-gold-450/20">
+        <span className="inline-flex items-center gap-1 bg-gold-200/20 text-gold-600 text-[9px] uppercase tracking-widest font-black px-3 py-1 rounded-full border border-[#cd9a2d]/25">
           <MapIcon className="w-3.5 h-3.5 text-gold-550" /> Premium Locator
         </span>
         <h1 className="text-2xl md:text-3xl font-serif font-black text-stone-900 tracking-wide leading-tight">
-          Lokasi & Rute <span className="text-gold-550">Cabang Alisya</span>
+          Lokasi & Rute <span className="text-gold-550">Alisya Arjawinangun</span>
         </h1>
         <p className="text-stone-500 text-xs font-light max-w-xl leading-relaxed">
-          Temukan cabang salon muslimah Alisya terdekat di kota Anda. Nikmati ruangan privat bersih dengan jaminan keamanan syariah tanpa pandangan pria.
+          Kunjungi studio utama kami di Arjawinangun Cirebon. Nikmati ruangan privat bersih dengan jaminan keamanan syariah tanpa pandangan pria non-mahram.
         </p>
       </section>
 
@@ -97,92 +97,20 @@ export default function MapsPage({ onShowToast }: MapsPageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         {/* Left Control & Information Deck (40%) */}
-        <div className="lg:col-span-5 flex flex-col space-y-4">
+        <div className="lg:col-span-5 flex flex-col">
           
-          {/* Branch Selector Search Wrapper */}
-          <div className="bg-white border border-stone-100 rounded-2xl p-4.5 shadow-sm space-y-3 text-left">
-            <h3 className="text-xs font-black uppercase text-stone-900 tracking-wider">Cari Cabang</h3>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Cari lokasi, kota, atau jalan..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-stone-50 border border-stone-100 focus:border-gold-500 rounded-xl py-2.5 pl-9 pr-4 text-xs font-medium outline-none transition-all placeholder:text-stone-400 focus:ring-1 focus:ring-gold-500/20"
-              />
-              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            </div>
-            
-            {/* Horizontal Branch Quick Select Pill Cards */}
-            <div className="flex flex-col gap-2 pt-1 max-h-[140px] overflow-y-auto pr-1">
-              {filteredBranches.map((br) => {
-                const isSelected = br.id === selectedBranchId;
-                return (
-                  <button
-                    key={br.id}
-                    onClick={() => {
-                      setSelectedBranchId(br.id);
-                      setShowingRoute(false);
-                    }}
-                    className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-start gap-3 ${
-                      isSelected 
-                        ? 'bg-[#0a0a0c] border-gold-500/80 text-white shadow-md' 
-                        : 'bg-stone-50/50 border-stone-100 text-stone-700 hover:bg-stone-50 hover:border-stone-200'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                      isSelected ? 'bg-gold-500 text-[#0a0a0c]' : 'bg-stone-200/60 text-stone-500'
-                    }`}>
-                      <MapPin className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <h4 className="text-[11.5px] font-black truncate leading-tight">
-                          {br.codename}
-                        </h4>
-                        <div className="flex items-center gap-0.5 shrink-0 text-gold-500 text-[10px] font-bold">
-                          <Star className="w-3 h-3 fill-current" />
-                          <span>{br.rating}</span>
-                        </div>
-                      </div>
-                      <p className={`text-[10px] mt-1 leading-snug line-clamp-1 ${
-                        isSelected ? 'text-stone-300' : 'text-stone-500'
-                      }`}>
-                        {br.address}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5 text-[9px] font-bold uppercase tracking-wider">
-                        <span className={isSelected ? 'text-gold-400' : 'text-stone-600'}>
-                          {br.distance}
-                        </span>
-                        <span className={isSelected ? 'text-stone-400' : 'text-stone-400'}>•</span>
-                        <span className={isSelected ? 'text-[#cd9a34]' : 'text-[#a17a2a]'}>
-                          {br.estTime}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-              {filteredBranches.length === 0 && (
-                <div className="p-6 text-center text-xs text-stone-400 border border-dashed border-stone-200 rounded-xl">
-                  Tidak ada cabang ditemukan yang sesuai.
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Dynamic Active Salon details deck card */}
           <div className="bg-stone-50 border border-stone-100 rounded-2xl p-5 shadow-sm space-y-4 text-left flex-1 flex flex-col justify-between">
             <div className="space-y-3.5">
               
               {/* Branch Cozy Thumbnail */}
-              <div className="h-32 w-full rounded-xl overflow-hidden relative border border-stone-200 bg-stone-100">
+              <div className="h-44 w-full rounded-xl overflow-hidden relative border border-stone-200 bg-stone-100">
                 <img 
                   src={selectedBranch.branchImage} 
                   alt={selectedBranch.name} 
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-2 right-2 bg-[#0a0a0c]/80 backdrop-blur-md text-[#d4af37] text-[9px] uppercase tracking-widest font-black px-2.5 py-1 rounded-full border border-[#d4af37]/35 flex items-center gap-1 shadow-sm">
+                <div className="absolute top-2.5 right-2.5 bg-[#0a0a0c]/80 backdrop-blur-md text-[#A98436] text-[9px] uppercase tracking-widest font-black px-2.5 py-1 rounded-full border border-[#A98436]/35 flex items-center gap-1 shadow-sm font-sans">
                   <Shield className="w-3 h-3" /> 100% Muslimah Privat
                 </div>
               </div>
@@ -250,18 +178,24 @@ export default function MapsPage({ onShowToast }: MapsPageProps) {
             {/* Actions Panel inside the card */}
             <div className="grid grid-cols-2 gap-2 pt-4 border-t border-stone-200/60">
               
-              <button
-                onClick={triggerShowRouteAnimation}
-                className="bg-stone-900 text-white hover:bg-stone-850 px-3 py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+              <a
+                href="https://www.google.com/maps/dir/?api=1&destination=Alisya+Premium+Salon+%26+Spa+Arjawinangun+Cirebon+Grand+Lavanda"
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  setShowingRoute(true);
+                  onShowToast("Menghubungkan ke GPS handphone... Membuka aplikasi navigasi.", "success");
+                }}
+                className="bg-stone-900 text-white hover:bg-stone-850 px-3 py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95 text-center"
               >
-                <Navigation className="w-3.5 h-3.5 text-gold-400" /> Lihat Rute
-              </button>
+                <Navigation className="w-3.5 h-3.5 text-gold-400" /> Lihat Rute (GPS)
+              </a>
 
               <a
                 href={selectedBranch.googleMapsUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="bg-gold-500 text-stone-950 hover:bg-gold-600 px-3 py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95 border border-gold-600/10"
+                className="bg-gold-500 text-stone-950 hover:bg-gold-600 px-3 py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95 border border-gold-600/10 text-center"
               >
                 Petunjuk Maps <ExternalLink className="w-3 h-3" />
               </a>
@@ -357,10 +291,7 @@ export default function MapsPage({ onShowToast }: MapsPageProps) {
               {/* Dynamic simulated route tracing connection of the direction tool */}
               {showingRoute && (
                 <path 
-                  d={selectedBranch.id === 'br-01' 
-                    ? "M 180,250 Q 240,240 330,195 T 380,180" 
-                    : "M 180,250 Q 240,280 380,330 T 560,335 T 620,335"
-                  } 
+                  d="M 180,250 Q 240,240 330,195 T 380,180" 
                   fill="none" 
                   stroke="#cd9a2d" 
                   strokeWidth="6.5" 
@@ -445,7 +376,7 @@ export default function MapsPage({ onShowToast }: MapsPageProps) {
                     )}
                     <div className={`w-9 h-9 rounded-full shadow-2xl flex items-center justify-center text-white border-2 transition-all ${
                       isSelected 
-                        ? 'bg-[#0a0a0c] border-[#d4af37] text-gold-400' 
+                        ? 'bg-[#0a0a0c] border-[#A98436] text-gold-400' 
                         : 'bg-stone-800 border-white text-white hover:bg-stone-900'
                     }`}>
                       <MapPin className={`w-4 h-4 ${isSelected ? 'text-[#cd9a27]' : 'text-stone-300'}`} />
@@ -488,43 +419,17 @@ export default function MapsPage({ onShowToast }: MapsPageProps) {
                 <span className="w-2.5 h-2.5 bg-[#cd9a2d] rounded-full inline-block" /> Rute Rencana
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 bg-stone-800 rounded-full inline-block" /> Cabang Alisya
+                <span className="w-2.5 h-2.5 bg-stone-800 rounded-full inline-block" /> Lokasi Alisya
               </span>
             </div>
             <div className="text-[10px] italic">
-              Peta simulasi akurat Jabotabek area
+              Peta simulasi akurat kawasan Arjawinangun Cirebon
             </div>
           </div>
 
         </div>
 
       </div>
-
-      {/* Aesthetic Promo Segment under Map matching the reference Salonix App interface design rules */}
-      <section className="bg-gradient-to-r from-stone-900 to-black/95 text-white p-6 md:p-8 rounded-3xl relative overflow-hidden text-left border border-gold-450/15">
-        <div className="absolute top-[-30%] right-[-10%] w-72 h-72 rounded-full bg-gold-450/10 blur-3xl" />
-        <div className="relative z-10 max-w-xl space-y-3">
-          <span className="bg-gold-500 text-stone-950 font-black text-[9px] uppercase tracking-widest px-2.5 py-1 rounded">
-            PROMO KHUSUS LOKASI BARU
-          </span>
-          <h3 className="text-xl md:text-2xl font-serif font-black tracking-wide">
-            Kunjungi Cabang Depok Margonda & Dapatkan Diskon <span className="text-gold-550">15% ALL TREATMENT</span>!
-          </h3>
-          <p className="text-stone-400 text-xs font-light leading-relaxed">
-            Dalam rangka soft opening cabang terbaru di Margonda Depok, nikmati harga spesial promo soft launching untuk Hair Treatment, Facial, & Complete Spa khusus bulan ini. Datang dengan rute Google Maps dan tunjukkan kartu keanggotaan digital Anda.
-          </p>
-          <div className="pt-2">
-            <a 
-              href="https://wa.me/6285399998888?text=Assalamu'alaikum%20Alisya%20Beauty,%20saya%20tertarik%2520booking%20promo%20soft%2520opening%20Cabang%20Depok"
-              target="_blank" 
-              rel="noreferrer"
-              className="bg-gold-500 hover:bg-gold-600 text-stone-950 text-xs font-black px-5 py-3 rounded-xl shadow-md uppercase tracking-wider inline-flex items-center gap-2 transition-colors cursor-pointer active:scale-95"
-            >
-              <Phone className="w-4 h-4" /> Hubungi WhatsApp Cabang Depok
-            </a>
-          </div>
-        </div>
-      </section>
 
     </div>
   );

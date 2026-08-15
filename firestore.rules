@@ -6,7 +6,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
     function isSignedIn() {
       return request.auth != null;
     }
@@ -22,25 +24,109 @@ service cloud.firestore {
       );
     }
 
+    // Validates that critical fields are set to default values on creation by non-admins
+    function isValidUserCreate() {
+      return request.resource.data.get('role', 'user') == 'user'
+          && request.resource.data.get('level', 'Bronze') == 'Bronze'
+          && request.resource.data.get('points', 0) == 0;
+    }
+
+    // Validates that critical fields are unmodified during updates by non-admins
+    function isValidUserUpdate() {
+      return request.resource.data.get('role', 'user') == resource.data.get('role', 'user');
+    }
+
+    // ==========================================
+    // COLLECTION MATCHING RULES
+    // ==========================================
+
     // User profile matching
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(userId) || isAdmin();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
 
     // Bookings matching
     match /bookings/{bookingId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        resource.data.userId == request.auth.uid && 
+        request.resource.data.userId == request.auth.uid && 
+        request.resource.data.get('status', 'pending') == resource.data.get('status', 'pending')
+      );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Booked slots matching (for public slot conflicts check without exposing PII)
+    match /booked_slots/{slotId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Shop Orders matching
+    match /shop_orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        resource.data.userId == request.auth.uid && 
+        request.resource.data.userId == request.auth.uid && 
+        request.resource.data.get('status', 'pending') == resource.data.get('status', 'pending')
+      );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     // Reviews matching (readable by anyone, writable by owners)
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Treatments matching (readable by anyone, managed by Admin)
+    match /treatments/{treatmentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Products matching (readable by anyone, managed by Admin)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Branches matching (readable by anyone, managed by Admin)
+    match /branches/{branchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Promos matching (readable by anyone, managed by Admin)
+    match /promos/{promoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Gallery matching (readable by anyone, managed by Admin)
+    match /gallery/{galleryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Settings matching (readable by anyone, managed by Admin)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Booking locks matching (readable and writable by authenticated users to serialize scheduling)
+    match /booking_locks/{dateId} {
+      allow read, write: if isSignedIn();
     }
   }
 }

@@ -4,6 +4,7 @@ export interface Treatment {
   description: string;
   price: number;
   duration?: number;
+  category?: string;
   createdAt?: any;
 }
 
@@ -32,7 +33,14 @@ export interface Booking {
   bookingTime?: string;
   notes?: string;
   status: 'pending' | 'confirmed' | 'done' | 'cancelled';
+  room?: string;
+  therapist?: string;
   createdAt?: any;
+  appliedPromoId?: string;
+  appliedPromoTitle?: string;
+  originalPrice?: number;
+  discountAmount?: number;
+  finalPrice?: number;
 }
 
 export interface Review {
@@ -55,6 +63,13 @@ export interface UserProfile {
   level: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   points: number;
   whatsapp?: string;
+  address?: string;
+  gpsLocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+    mapsUrl?: string;
+  };
   createdAt?: any;
 }
 
@@ -90,3 +105,45 @@ export const levelConfig: Record<string, LevelThreshold> = {
   Gold: { color: '#D4AF37', next: 'Platinum', nextPts: 3000, icon: '🥇' },
   Platinum: { color: '#E5E4E2', next: null, nextPts: null, icon: '💎' },
 };
+
+export interface Promo {
+  id: string;
+  title: string;
+  description: string;
+  code?: string;
+  discountValue: string; // e.g., "20%" or "Rp 15.000"
+  type: 'banner' | 'coupon'; // banner showing on Home Page, coupon showing on Profile Page
+  createdAt?: any;
+}
+
+export interface ShopOrder {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  date: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  createdAt?: any;
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
+export interface GalleryItem {
+  id: string;
+  url: string;
+  category: 'hair' | 'face' | 'spa' | 'body' | 'interior';
+  title: string;
+  desc: string;
+  likes: string;
+  comments?: string;
+  duration?: string;
+  createdAt?: any;
+}
+
+

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, ShieldCheck, Heart, HelpCircle, Loader2, Play, 
   CheckCircle, Info, Lock, ChevronRight, User, AlertTriangle,
-  Eye, EyeOff
+  Eye, EyeOff, ShoppingCart, Clock, ShoppingBag, X, Plus, Minus, Trash2, Box
 } from 'lucide-react';
 import { auth, provider } from './config/firebase';
 import { signInWithPopup, signOut as fbSignOut, onAuthStateChanged } from 'firebase/auth';
-import { fetchUserProfile, updateUserWhatsapp } from './services/dataService';
-import { UserProfile } from './types';
+import { fetchUserProfile, updateUserWhatsapp, subscribeBookings, subscribeUserProfile, createShopOrder, updateUserAddress } from './services/dataService';
+import { UserProfile, CartItem } from './types';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Importing subcomposed components
 import Layout from './components/Layout';
@@ -15,11 +16,15 @@ import HomePage from './components/HomePage';
 import ServicesPage from './components/ServicesPage';
 import BookingPage from './components/BookingPage';
 import ShopPage from './components/ShopPage';
+import LivePage from './components/LivePage';
 import GalleryPage from './components/GalleryPage';
 import ProfilePage from './components/ProfilePage';
 import AdminPage from './components/AdminPage';
 import MapsPage from './components/MapsPage';
+import NotificationsPage from './components/NotificationsPage';
+import ReviewsPage from './components/ReviewsPage';
 import Toast from './components/Toast';
+import AlyaAmbassador from './components/AlyaAmbassador';
 import logoImg from './assets/images/logo.png';
 
 export default function App() {
@@ -27,7 +32,120 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [preselectedTreatment, setPreselectedTreatment] = useState("");
+  const [preselectedPromoId, setPreselectedPromoId] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [whatsappNum, setWhatsappNum] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [doneBookingsCount, setDoneBookingsCount] = useState(0);
+  const [myBookingsCount, setMyBookingsCount] = useState(0);
+  const [isAlyaOpen, setIsAlyaOpen] = useState(false);
+  const [isBookingHistoryOpen, setIsBookingHistoryOpen] = useState(false);
+
+  // Shopping Cart States
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const stored = localStorage.getItem('alisya_cart');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Sync Cart to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('alisya_cart', JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  // Shared Cart helper functions
+  const handleRemoveFromCart = (productId: string) => {
+    setCartItems(prev => {
+      const item = prev.find(i => i.product.id === productId);
+      if (item) {
+        showToast(`🗑️ "${item.product.name}" dihapus dari keranjang.`, "info");
+      }
+      return prev.filter(i => i.product.id !== productId);
+    });
+  };
+
+  const handleUpdateQuantity = (productId: string, delta: number) => {
+    setCartItems(prev => {
+      return prev.map(item => {
+        if (item.product.id === productId) {
+          const newQty = item.quantity + delta;
+          return { ...item, quantity: Math.max(1, newQty) };
+        }
+        return item;
+      });
+    });
+  };
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) return;
+
+    if (!userProfile) {
+      showToast("🔒 Silakan masuk (login) terlebih dahulu untuk memproses pesanan butik Anda!", "error");
+      return;
+    }
+
+    try {
+      showToast("⏳ Sedang memproses pembelian dan merekam transaksi...", "info");
+
+      for (const item of cartItems) {
+        await createShopOrder({
+          userId: userProfile.uid,
+          userName: userProfile.displayName,
+          userEmail: userProfile.email,
+          productName: `${item.product.name} (x${item.quantity})`,
+          price: item.product.price * item.quantity,
+          quantity: item.quantity,
+          date: new Date().toLocaleDateString('id-ID')
+        });
+      }
+
+      const totalPembayaran = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+      
+      const itemDetails = cartItems.map((item, idx) => 
+        `${idx + 1}. *${item.product.name}*\n   Jumlah: ${item.quantity}x\n   Subtotal: Rp ${(item.product.price * item.quantity).toLocaleString('id-ID')}`
+      ).join('\n\n');
+
+      const addressString = userProfile.address ? `- Alamat Pengiriman: ${userProfile.address}` : '- Alamat Pengiriman: Belum diisi (Mohon isi Alamat di Pengaturan Profil Anda)';
+      const gpsString = userProfile.gpsLocation 
+        ? `- Koordinat GPS: ${userProfile.gpsLocation.latitude}, ${userProfile.gpsLocation.longitude}\n- Link Peta Google Maps: ${userProfile.gpsLocation.mapsUrl || `https://www.google.com/maps?q=${userProfile.gpsLocation.latitude},${userProfile.gpsLocation.longitude}`}` 
+        : '- Akurasi GPS: Belum dikalibrasi (Gunakan fitur Deteksi GPS di profil)';
+
+      const checkoutMessage = `Assalamu'alaikum Alisya Beauty Admin, saya ingin memesan produk butik dari keranjang belanja saya:
+
+${itemDetails}
+
+=========================
+*Total Pembayaran: Rp ${totalPembayaran.toLocaleString('id-ID')}*
+=========================
+
+*Data Pemesan & Pengiriman:*
+- Nama: ${userProfile.displayName}
+- Email: ${userProfile.email}
+${addressString}
+${gpsString}
+
+Mohon konfirmasi ketersediaan stok & ongkos kirim. Terima kasih banyak!`;
+
+      const adminWhatsApp = "6289661946783";
+      const waURL = `https://api.whatsapp.com/send?phone=${adminWhatsApp}&text=${encodeURIComponent(checkoutMessage)}`;
+
+      showToast("🎉 Checkout berhasil! Membuka WhatsApp untuk konfirmasi pengiriman...", "success");
+      setCartItems([]);
+      setIsCartOpen(false);
+
+      setTimeout(() => {
+        window.open(waURL, '_blank');
+      }, 1100);
+
+    } catch (e) {
+      console.error(e);
+      showToast("Gagal memproses checkout pesanan.", "error");
+    }
+  };
 
   // Toast State
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
@@ -50,10 +168,35 @@ export default function App() {
   useEffect(() => {
     if (userProfile) {
       document.body.className = 'app-page';
+      localStorage.setItem('alisya_local_user', JSON.stringify(userProfile));
     } else {
       document.body.className = 'login-page';
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    const uid = userProfile?.uid;
+    if (!uid) {
+      setDoneBookingsCount(0);
+      setMyBookingsCount(0);
+      return;
+    }
+    const unsubscribe = subscribeBookings(uid, (userBookings) => {
+      const doneCount = userBookings.filter(b => b.status === 'done').length;
+      setDoneBookingsCount(doneCount);
+      setMyBookingsCount(userBookings.length);
+    });
+    return () => unsubscribe();
+  }, [userProfile?.uid]);
+
+  useEffect(() => {
+    const uid = userProfile?.uid;
+    if (!uid) return;
+    const unsubscribe = subscribeUserProfile(uid, (profileData) => {
+      setUserProfile(profileData);
+    });
+    return () => unsubscribe();
+  }, [userProfile?.uid]);
 
   useEffect(() => {
     // 1. Check local storage for active local/demo user first
@@ -162,6 +305,7 @@ export default function App() {
     }
 
     let registeredWithFirebase = false;
+    let registeredUid = "";
     if (auth) {
       try {
         const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
@@ -176,9 +320,47 @@ export default function App() {
           await updateUserWhatsapp(userCredential.user.uid, registerWhatsapp);
         }
         registeredWithFirebase = true;
+        registeredUid = userCredential.user.uid;
       } catch (err: any) {
         console.warn("Firebase email registration failed, continuing local store fallback:", err);
       }
+    }
+
+    if (registeredWithFirebase) {
+      try {
+        const localUsersStr = localStorage.getItem('alisya_registered_users') || '[]';
+        const localUsers = JSON.parse(localUsersStr);
+        if (!localUsers.some((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
+          localUsers.push({
+            uid: registeredUid,
+            email: email.toLowerCase(),
+            password: password,
+            displayName: registerName,
+            whatsapp: registerWhatsapp
+          });
+          localStorage.setItem('alisya_registered_users', JSON.stringify(localUsers));
+
+          const sampleProfile: UserProfile = {
+            uid: registeredUid,
+            displayName: registerName,
+            email: email.toLowerCase(),
+            photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
+            level: 'Bronze',
+            points: 0,
+            whatsapp: registerWhatsapp,
+            createdAt: new Date().toISOString()
+          };
+          const profilesStr = localStorage.getItem('alisya_user_profiles') || '[]';
+          const profiles = JSON.parse(profilesStr);
+          profiles.push(sampleProfile);
+          localStorage.setItem('alisya_user_profiles', JSON.stringify(profiles));
+        }
+      } catch (e) {
+        // quiet fallback
+      }
+      showToast("Pendaftaran berhasil! Akun Anda aktif. Selamat datang di Alisya Beauty.", "success");
+      setPassword("");
+      return;
     }
 
     try {
@@ -190,7 +372,9 @@ export default function App() {
         return;
       }
 
+      const newUid = `u_${Date.now()}`;
       localUsers.push({
+        uid: newUid,
         email: email.toLowerCase(),
         password: password,
         displayName: registerName,
@@ -198,6 +382,22 @@ export default function App() {
       });
 
       localStorage.setItem('alisya_registered_users', JSON.stringify(localUsers));
+
+      // Seed profile in user_profiles
+      const sampleProfile: UserProfile = {
+        uid: newUid,
+        displayName: registerName,
+        email: email.toLowerCase(),
+        photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
+        level: 'Bronze',
+        points: 0,
+        whatsapp: registerWhatsapp,
+        createdAt: new Date().toISOString()
+      };
+      const profilesStr = localStorage.getItem('alisya_user_profiles') || '[]';
+      const profiles = JSON.parse(profilesStr);
+      profiles.push(sampleProfile);
+      localStorage.setItem('alisya_user_profiles', JSON.stringify(profiles));
       
       showToast("Pendaftaran berhasil! Akun Anda aktif. Silakan masuk sekarang.", "success");
       setAuthMode('login');
@@ -220,42 +420,7 @@ export default function App() {
     const matchedLocalUser = localUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
     const isAdminUser = email === 'miftahilmi15@gmail.com' || email.toLowerCase().includes('admin');
 
-    // 1. Authenticate local registered user first (extremely fast & robust)
-    if (matchedLocalUser) {
-      if (matchedLocalUser.password !== password) {
-        showToast("Password yang Anda masukkan salah.", "error");
-        return;
-      }
-      
-      const sampleUser: UserProfile = {
-        uid: matchedLocalUser.uid || `guest_${Date.now()}`,
-        displayName: matchedLocalUser.displayName,
-        email: matchedLocalUser.email,
-        photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
-        level: 'Bronze',
-        points: 15,
-        whatsapp: matchedLocalUser.whatsapp,
-        createdAt: new Date().toISOString()
-      };
-
-      try {
-        localStorage.setItem('alisya_local_user', JSON.stringify(sampleUser));
-        setUserProfile(sampleUser);
-        setWhatsappNum(sampleUser.whatsapp || "");
-        showToast(`Assalamu'alaikum, ${sampleUser.displayName}!`, "success");
-      } catch {
-        showToast("Gagal memproses login.", "error");
-      }
-      return;
-    }
-
-    // 2. Fallback check for Local Admin login (if not found in registered users)
-    if (isAdminUser) {
-      handleLocalDemoLogin('admin');
-      return;
-    }
-
-    // 3. Try Firebase Auth sign-in if Firebase is available and user is not in local storage
+    // 1. Try Firebase Auth sign-in first if Firebase is available
     if (auth) {
       try {
         const { signInWithEmailAndPassword } = await import('firebase/auth');
@@ -263,29 +428,110 @@ export default function App() {
         const profile = await fetchUserProfile(userCredential.user.uid);
         setUserProfile(profile);
         setWhatsappNum(profile.whatsapp || "");
+        
+        // Keep local cache updated
+        try {
+          if (matchedLocalUser) {
+            matchedLocalUser.uid = userCredential.user.uid;
+            localStorage.setItem('alisya_registered_users', JSON.stringify(localUsers));
+          } else {
+            localUsers.push({
+              uid: userCredential.user.uid,
+              email: email.toLowerCase(),
+              password: password,
+              displayName: profile.displayName,
+              whatsapp: profile.whatsapp || ""
+            });
+            localStorage.setItem('alisya_registered_users', JSON.stringify(localUsers));
+          }
+
+          const profilesStr = localStorage.getItem('alisya_user_profiles') || '[]';
+          const profiles = JSON.parse(profilesStr);
+          const existingLocalProfileIdx = profiles.findIndex((p: any) => p.uid === userCredential.user.uid);
+          if (existingLocalProfileIdx !== -1) {
+            profiles[existingLocalProfileIdx] = profile;
+          } else {
+            profiles.push(profile);
+          }
+          localStorage.setItem('alisya_user_profiles', JSON.stringify(profiles));
+          localStorage.setItem('alisya_local_user', JSON.stringify(profile));
+        } catch {
+          // ignore cache error
+        }
+
         showToast(`Assalamu'alaikum, ${profile.displayName}!`, "success");
         return;
       } catch (fbErr: any) {
-        console.warn("Firebase signin error:", fbErr);
+        console.warn("Firebase login failed:", fbErr);
         const code = fbErr.code || "";
         
         if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
           showToast("Password yang Anda masukkan salah atau email salah.", "error");
-        } else if (code === 'auth/user-not-found') {
-          showToast("Email belum terdaftar. Silakan daftar terlebih dahulu sebelum masuk.", "error");
-          setAuthMode('register');
+          return;
         } else if (code === 'auth/user-disabled') {
           showToast("Akun Anda telah dinonaktifkan.", "error");
+          return;
         } else if (code === 'auth/too-many-requests') {
           showToast("Terlalu banyak percobaan masuk gagal. Coba lagi nanti.", "error");
-        } else {
-          showToast("Gagal masuk. Silakan cek koneksi Anda.", "error");
+          return;
         }
-        return;
+        // For auth/user-not-found or other connection issues, we fall back to local storage matching
       }
     }
 
-    // Neither Firebase Auth nor Local Store has this user
+    // 2. Local fallback if offline / legacy user
+    if (matchedLocalUser) {
+      if (matchedLocalUser.password !== password) {
+        showToast("Password yang Anda masukkan salah.", "error");
+        return;
+      }
+      
+      const userUid = matchedLocalUser.uid || `u_${Date.now()}`;
+      if (!matchedLocalUser.uid) {
+        matchedLocalUser.uid = userUid;
+        localStorage.setItem('alisya_registered_users', JSON.stringify(localUsers));
+      }
+
+      const profilesStr = localStorage.getItem('alisya_user_profiles') || '[]';
+      const profiles = JSON.parse(profilesStr);
+      let sampleUser = profiles.find((p: any) => p.uid === userUid);
+
+      if (!sampleUser) {
+        sampleUser = {
+          uid: userUid,
+          displayName: matchedLocalUser.displayName,
+          email: matchedLocalUser.email,
+          photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
+          level: 'Bronze',
+          points: 0,
+          whatsapp: matchedLocalUser.whatsapp,
+          createdAt: new Date().toISOString()
+        };
+        profiles.push(sampleUser);
+        localStorage.setItem('alisya_user_profiles', JSON.stringify(profiles));
+      } else {
+        if (matchedLocalUser.whatsapp && sampleUser.whatsapp !== matchedLocalUser.whatsapp) {
+          sampleUser.whatsapp = matchedLocalUser.whatsapp;
+          localStorage.setItem('alisya_user_profiles', JSON.stringify(profiles));
+        }
+      }
+
+      try {
+        localStorage.setItem('alisya_local_user', JSON.stringify(sampleUser));
+        setUserProfile(sampleUser);
+        setWhatsappNum(sampleUser.whatsapp || "");
+        showToast(`Assalamu'alaikum, ${sampleUser.displayName}! (Offline Mode)`, "success");
+      } catch {
+        showToast("Gagal memproses login.", "error");
+      }
+      return;
+    }
+
+    if (isAdminUser) {
+      handleLocalDemoLogin('admin');
+      return;
+    }
+
     showToast("Email belum terdaftar. Silakan daftar terlebih dahulu sebelum masuk.", "error");
     setAuthMode('register');
   };
@@ -312,11 +558,22 @@ export default function App() {
         displayName: 'Zulfa Shaliha',
         email: 'shaliha.beauty@gmail.com',
         photoURL: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
-        level: 'Gold',
-        points: 1750,
+        level: 'Bronze',
+        points: 0,
         whatsapp: '085399998888',
         createdAt: new Date().toISOString()
       };
+      
+      // Empty local caches to start fresh as requested
+      try {
+        localStorage.removeItem('alisya_bookings');
+        localStorage.removeItem('alisya_reviews');
+        localStorage.removeItem('reviews');
+        // Let's seed the fallback profile on-the-fly to keep local triggers connected
+        localStorage.setItem('alisya_user_profiles', JSON.stringify([sampleUser]));
+      } catch (err) {
+        console.warn("Storage item clear error:", err);
+      }
     }
 
     try {
@@ -346,9 +603,23 @@ export default function App() {
     }
   };
 
-  const handleNavigateToBooking = (treatmentName: string) => {
+  const handleNavigateToBooking = (treatmentName: string, promoId?: string) => {
     setPreselectedTreatment(treatmentName);
+    if (promoId) {
+      setPreselectedPromoId(promoId);
+    }
     setActiveTab('booking');
+  };
+
+  const handleNavigateToCategory = (categoryName: string) => {
+    let mappedCat = "All";
+    if (categoryName === "Hair Treatment") mappedCat = "Hair";
+    else if (categoryName === "Facial Treatment") mappedCat = "Facial";
+    else if (categoryName === "Body Treatment") mappedCat = "Body";
+    else if (categoryName === "Spa") mappedCat = "Spa";
+    
+    setActiveCategory(mappedCat);
+    setActiveTab('services');
   };
 
   if (loading) {
@@ -364,29 +635,29 @@ export default function App() {
   }
 
   // ========================================================
-  // LOGIN SCREEN (IF NO USER LOGGED IN) - DARK LUXURY THEME
+  // LOGIN SCREEN (IF NO USER LOGGED IN) - PREMIUM GOLD & CREAM THEME
   // ========================================================
   if (!userProfile) {
     return (
-      <div className="min-h-screen bg-[#050507] flex flex-col items-center justify-center relative px-4 py-8 overflow-hidden font-sans">
+      <div className="min-h-screen bg-[#FAF9F6] flex flex-col items-center justify-center relative px-4 py-8 overflow-hidden font-sans">
         
         {/* Luxury Background Ambient Lights */}
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full bg-gold-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[450px] h-[450px] rounded-full bg-gold-600/5 blur-3xl pointer-events-none" />
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 rounded-full bg-gold-400/8 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[450px] h-[450px] rounded-full bg-gold-500/5 blur-3xl pointer-events-none" />
         
         {/* Ambient background picture opacity */}
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=900')] bg-cover bg-center opacity-5 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050507] via-[#050507]/92 to-[#050507]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6]/94 to-[#FAF9F6]" />
 
         <div className="relative z-10 max-w-md w-full space-y-7 animate-fade-in-up">
           
           {/* Brand Logo & Presentation */}
           <div className="space-y-3 text-center">
-            <div className="w-28 h-28 mx-auto relative group">
+            <div className="w-28 h-28 mx-auto relative group animate-fade-in-up">
               <img 
                 src={logoImg || "logo.png"} 
                 alt="Alisya Beauty Logo" 
-                className="w-full h-full object-contain rounded-full shadow-2xl border border-[#d4af37]/40 p-1 bg-black/40 hover:border-[#d4af37] transition-all duration-500 transform hover:scale-105"
+                className="w-full h-full object-contain rounded-full shadow-lg border border-[#be9741]/45 p-1 bg-white hover:border-gold-500 transition-all duration-500 transform hover:scale-105"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
                   const target = e.currentTarget;
@@ -396,24 +667,24 @@ export default function App() {
               />
             </div>
             <div className="space-y-1">
-              <h1 className="text-3.5xl font-serif font-black tracking-widest text-white leading-tight">
+              <h1 className="text-3.5xl font-serif font-black tracking-widest text-[#3c2a13] leading-tight">
                 Alisya Beauty
               </h1>
             </div>
           </div>
 
           {/* Interactive Login Card - Glassmorphism, Gold glow border, smooth layout */}
-          <div className="glass rounded-3xl p-6.5 border border-[#d4af37]/25 shadow-[0_20px_50px_rgba(0,0,0,0.8),_0_0_20px_rgba(212,175,55,0.05)] text-left space-y-5 animate-fade-in-up relative">
+          <div className="liquid-glass rounded-3xl p-6.5 border border-[#be9741]/25 shadow-[0_16px_40px_rgba(167,134,59,0.08)] text-left space-y-5 animate-fade-in-up relative">
             
             {/* Auth Switcher Tabs (Daftar / Masuk) */}
-            <div className="flex border-b border-white/10 pb-4.5 gap-2">
+            <div className="flex border-b border-stone-200/60 pb-4.5 gap-2">
               <button
                 type="button"
                 onClick={() => { setAuthMode('login'); setAuthError(null); }}
                 className={`flex-1 text-center pb-2 text-xs font-black tracking-widest uppercase transition-all duration-350 cursor-pointer ${
                   authMode === 'login' 
-                    ? 'text-white border-b-2 border-[#d4af37] scale-102 font-black' 
-                    : 'text-stone-500 hover:text-stone-300 font-bold'
+                    ? 'text-gold-750 border-b-2 border-gold-500 scale-102 font-black' 
+                    : 'text-stone-400 hover:text-stone-600 font-bold'
                 }`}
               >
                 Masuk
@@ -423,8 +694,8 @@ export default function App() {
                 onClick={() => { setAuthMode('register'); setAuthError(null); }}
                 className={`flex-1 text-center pb-2 text-xs font-black tracking-widest uppercase transition-all duration-350 cursor-pointer ${
                   authMode === 'register' 
-                    ? 'text-white border-b-2 border-[#d4af37] scale-102 font-black' 
-                    : 'text-stone-500 hover:text-stone-300 font-bold'
+                    ? 'text-gold-750 border-b-2 border-gold-500 scale-102 font-black' 
+                    : 'text-stone-400 hover:text-stone-600 font-bold'
                 }`}
               >
                 Daftar
@@ -437,7 +708,7 @@ export default function App() {
               {authMode === 'register' && (
                 <>
                   <div className="space-y-1.5 text-left animate-fade-in-up">
-                    <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
+                    <label className="text-[10px] font-black tracking-widest text-gold-700 uppercase block">
                       Nama Lengkap
                     </label>
                     <input
@@ -446,12 +717,12 @@ export default function App() {
                       value={registerName}
                       onChange={(e) => setRegisterName(e.target.value)}
                       placeholder="Nama Lengkap Anda"
-                      className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)] animate-fade-in-up"
+                      className="w-full bg-white border border-stone-200 focus:border-gold-500 text-stone-800 rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-400 focus:shadow-[0_0_10px_rgba(190,151,65,0.08)] focus:ring-1 focus:ring-gold-500/20"
                     />
                   </div>
                   
                   <div className="space-y-1.5 text-left animate-fade-in-up">
-                    <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
+                    <label className="text-[10px] font-black tracking-widest text-gold-700 uppercase block">
                       Nomor WhatsApp
                     </label>
                     <input
@@ -460,13 +731,13 @@ export default function App() {
                       value={registerWhatsapp}
                       onChange={(e) => setRegisterWhatsapp(e.target.value)}
                       placeholder="Contoh: 08123456789"
-                      className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)] animate-fade-in-up"
+                      className="w-full bg-white border border-stone-200 focus:border-gold-500 text-stone-800 rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-400 focus:shadow-[0_0_10px_rgba(190,151,65,0.08)] focus:ring-1 focus:ring-gold-500/20"
                     />
                   </div>
                 </>
               )}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
+                <label className="text-[10px] font-black tracking-widest text-gold-700 uppercase block">
                   Email Address
                 </label>
                 <input
@@ -475,16 +746,16 @@ export default function App() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@shaliha.com"
-                  className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)]"
+                  className="w-full bg-white border border-stone-200 focus:border-gold-500 text-stone-800 rounded-xl py-3 px-4 text-xs outline-none transition-all placeholder:text-stone-400 focus:shadow-[0_0_10px_rgba(190,151,65,0.08)] focus:ring-1 focus:ring-gold-500/20"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black tracking-widest text-[#d4af37] uppercase block">
+                  <label className="text-[10px] font-black tracking-widest text-gold-700 uppercase block">
                     Password
                   </label>
-                  <span className="text-[9px] text-stone-500 hover:text-gold-200 cursor-pointer">Lupa?</span>
+                  <span className="text-[9px] text-stone-500 hover:text-gold-600 cursor-pointer">Lupa?</span>
                 </div>
                 <div className="relative">
                   <input
@@ -493,12 +764,12 @@ export default function App() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-[#08080a] border border-[#d4af37]/15 focus:border-[#d4af37] text-white rounded-xl py-3 pl-4 pr-11 text-xs outline-none transition-all placeholder:text-stone-600 focus:shadow-[0_0_10px_rgba(212,175,55,0.15)]"
+                    className="w-full bg-white border border-stone-200 focus:border-gold-500 text-stone-800 rounded-xl py-3 pl-4 pr-11 text-xs outline-none transition-all placeholder:text-stone-400 focus:shadow-[0_0_10px_rgba(190,151,65,0.08)] focus:ring-1 focus:ring-gold-500/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-gold-400 focus:outline-none p-1 rounded-md transition-colors cursor-pointer select-none"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-gold-600 focus:outline-none p-1 rounded-md transition-colors cursor-pointer select-none"
                     title={showPassword ? "Sembunyikan Password" : "Tampilkan Password"}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -509,7 +780,7 @@ export default function App() {
               {/* Submit Main Login Button */}
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-450 text-[#050507] font-extrabold py-3 rounded-xl shadow-lg shadow-gold-500/10 text-xs uppercase tracking-widest cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5 hover:shadow-[0_0_15px_rgba(212,175,55,0.3)] mt-2 animate-fade-in-up"
+                className="w-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-600 hover:from-gold-500 hover:to-gold-700 text-white font-extrabold py-3 rounded-xl shadow-md shadow-gold-500/10 text-xs uppercase tracking-widest cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5 hover:shadow-[0_6px_15px_rgba(190,151,65,0.25)] mt-2 animate-fade-in-up"
               >
                 {authMode === 'login' ? 'Masuk Keanggotaan' : 'Daftar Keanggotaan'}
               </button>
@@ -517,8 +788,8 @@ export default function App() {
 
             {/* Separator */}
             <div className="relative flex items-center justify-center my-4.5">
-              <div className="border-t border-white/5 w-full" />
-              <span className="absolute bg-[#0b0b0e] px-3.5 text-[9px] uppercase tracking-widest font-bold text-stone-500 font-mono">
+              <div className="border-t border-stone-200/80 w-full" />
+              <span className="absolute bg-[#fdfbf7] px-3.5 text-[9px] uppercase tracking-widest font-bold text-stone-400 font-mono">
                 Atau
               </span>
             </div>
@@ -526,7 +797,7 @@ export default function App() {
             {/* Google official button */}
             <button
                onClick={handleGoogleLogin}
-               className="w-full bg-white/5 hover:bg-white/10 text-stone-200 font-bold py-3 px-4 border border-white/10 hover:border-[#d4af37]/45 rounded-xl flex items-center justify-center gap-2.5 active:scale-98 transition-all uppercase tracking-wider text-[10.5px] cursor-pointer"
+               className="w-full bg-white hover:bg-stone-50 text-stone-700 font-bold py-3 px-4 border border-stone-200 hover:border-gold-500/40 rounded-xl flex items-center justify-center gap-2.5 active:scale-98 transition-all uppercase tracking-wider text-[10.5px] cursor-pointer shadow-sm hover:shadow-md"
             >
                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                  <path
@@ -559,13 +830,52 @@ export default function App() {
   // ========================================================
   // RENDER MAIN APPLICATION ROUTER IN SHELL
   // ========================================================
+  const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+
+  const headerAction = activeTab === 'shop' ? (
+    <button
+      onClick={() => setIsCartOpen(true)}
+      className="relative hover:text-[#A98436] hover:bg-white/80 active:scale-90 transition-all cursor-pointer p-2 bg-white/50 border border-[#EBE7DF] rounded-full text-stone-600 shadow-3xs flex items-center justify-center shrink-0"
+      title="Keranjang Belanja"
+    >
+      <div className="w-4 h-4 relative flex items-center justify-center text-[13px] leading-none">
+        🛒
+      </div>
+      {totalCartCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-[#A98436] text-white text-[8px] font-extrabold px-1 py-0.2 rounded-full min-w-4 border border-white shadow-3xs animate-pulse text-center">
+          {totalCartCount}
+        </span>
+      )}
+    </button>
+  ) : activeTab === 'booking' ? (
+    <button
+      onClick={() => setIsBookingHistoryOpen(true)}
+      className="hover:text-[#A98436] hover:bg-white/80 active:scale-90 transition-all cursor-pointer p-2 bg-white/50 border border-[#EBE7DF] rounded-full text-stone-600 shadow-3xs flex items-center justify-center shrink-0"
+      title="Riwayat Reservasi"
+    >
+      <Clock className="w-4 h-4 text-[#A98436]" />
+    </button>
+  ) : null;
+
   return (
     <Layout 
       activeTab={activeTab} 
-      onNavigate={setActiveTab} 
+      onNavigate={(tabId) => {
+        setActiveTab(tabId);
+        if (tabId !== 'services') {
+          setActiveCategory('All');
+        }
+      }} 
       userProfile={userProfile}
       onLogout={handleLogout}
       whatsappNum={whatsappNum}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      doneBookingsCount={doneBookingsCount}
+      activeCategory={activeCategory}
+      setActiveCategory={setActiveCategory}
+      headerAction={headerAction}
+      onOpenAlya={() => setIsAlyaOpen(true)}
     >
       {/* Dynamic screen routing */}
       {activeTab === 'home' && (
@@ -574,6 +884,17 @@ export default function App() {
           onNavigate={setActiveTab} 
           onNavigateToBooking={handleNavigateToBooking}
           onShowToast={showToast}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onNavigateToCategory={handleNavigateToCategory}
+        />
+      )}
+
+      {activeTab === 'services' && (
+        <ServicesPage 
+          onNavigateToBooking={handleNavigateToBooking}
+          activeCategory={activeCategory}
+          setActiveCategory={setActiveCategory}
         />
       )}
       
@@ -582,18 +903,39 @@ export default function App() {
           userProfile={userProfile} 
           preselectedTreatment={preselectedTreatment}
           clearPreselectedTreatment={() => setPreselectedTreatment("")}
+          preselectedPromoId={preselectedPromoId}
+          clearPreselectedPromoId={() => setPreselectedPromoId("")}
           onShowToast={showToast}
+          onNavigate={setActiveTab}
+          showHistoryDirectly={isBookingHistoryOpen}
+          onCloseHistory={() => setIsBookingHistoryOpen(false)}
         />
       )}
       
       {activeTab === 'shop' && (
         <ShopPage 
+          userProfile={userProfile}
           onShowToast={showToast} 
+          cartItems={cartItems}
+          setCartItems={setCartItems}
+          isCartOpen={isCartOpen}
+          setIsCartOpen={setIsCartOpen}
+          searchQuery={searchQuery}
         />
       )}
       
       {activeTab === 'gallery' && (
         <GalleryPage />
+      )}
+
+      {activeTab === 'live' && (
+        <LivePage 
+          userProfile={userProfile}
+          onShowToast={showToast}
+          cartItems={cartItems}
+          setCartItems={setCartItems}
+          onOpenCart={() => setIsCartOpen(true)}
+        />
       )}
       
       {activeTab === 'profile' && (
@@ -603,6 +945,23 @@ export default function App() {
           onNavigateToAdmin={() => setActiveTab('admin')}
           onShowToast={showToast}
           onUpdatewhatsapp={setWhatsappNum}
+          onNavigate={setActiveTab}
+          cartItems={cartItems}
+          onOpenCart={() => setIsCartOpen(true)}
+        />
+      )}
+
+      {activeTab === 'notifications' && (
+        <NotificationsPage 
+          userProfile={userProfile}
+          onNavigate={setActiveTab}
+        />
+      )}
+
+      {activeTab === 'reviews' && (
+        <ReviewsPage 
+          userProfile={userProfile}
+          onNavigate={setActiveTab}
         />
       )}
 
@@ -612,6 +971,152 @@ export default function App() {
         />
       )}
 
+      {/* Shared Shopping Cart Sliding Drawer */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-end font-sans">
+            {/* Backdrop Blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="absolute inset-0 bg-stone-950/40 backdrop-blur-xs cursor-pointer"
+            />
+
+            {/* Sliding Drawer Container */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col justify-between z-55 text-stone-800"
+            >
+              {/* Header */}
+              <div className="p-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/50 text-left">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 relative flex items-center justify-center text-[14px] leading-none">
+                    🛒
+                  </div>
+                  <h3 className="font-serif font-extrabold text-base text-stone-900 leading-none">Keranjang Belanja</h3>
+                  {totalCartCount > 0 && (
+                    <span className="bg-[#A98436] text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      {totalCartCount}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-700 transition-colors cursor-pointer border-0 bg-transparent animate-fade-in"
+                  title="Tutup"
+                >
+                  <X className="w-5 h-5 stroke-[2.5]" />
+                </button>
+              </div>
+
+              {/* Scrollable Cart List */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {cartItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-3.5 h-full animate-fade-in">
+                    <div className="w-14 h-14 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center text-stone-300">
+                      <ShoppingBag className="w-6 h-6 stroke-[1.5]" />
+                    </div>
+                    <div>
+                      <p className="font-serif font-extrabold text-stone-800 text-sm">Keranjang Belanja Kosong</p>
+                      <p className="text-[11px] text-stone-500 max-w-xs mx-auto leading-relaxed mt-1">
+                        Pilih berbagai produk formula kecantikan ramah muslimah premium kami untuk diisi ke keranjang Anda.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsCartOpen(false)}
+                      className="bg-[#A98436] hover:bg-[#93722E] text-white text-xs font-bold py-2.5 px-6 rounded-full transition-all cursor-pointer border-0 active:scale-95"
+                    >
+                      Mulai Berbelanja
+                    </button>
+                  </div>
+                ) : (
+                  cartItems.map((item) => (
+                    <div 
+                      key={item.product.id} 
+                      className="flex gap-3 bg-stone-50/50 p-3.5 rounded-2xl border border-stone-100 items-center justify-between animate-fade-in-up"
+                    >
+                      {/* Left: Info & Thumbnail */}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-12 h-12 rounded-xl bg-white border border-stone-100 overflow-hidden shrink-0 flex items-center justify-center shadow-3xs">
+                          {item.product.imageUrl ? (
+                            <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Box className="w-5 h-5 text-stone-300" />
+                          )}
+                        </div>
+                        
+                        <div className="min-w-0 text-left">
+                          <h4 className="font-extrabold text-[12.5px] text-stone-900 truncate leading-tight">{item.product.name}</h4>
+                          <p className="text-[11px] font-mono font-bold text-[#A98436] mt-1">
+                            Rp {item.product.price.toLocaleString('id-ID')}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right: Quantity Adjuster & Action */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <div className="flex items-center gap-1.5 bg-white border border-stone-200 rounded-lg p-0.5">
+                          <button
+                            onClick={() => handleUpdateQuantity(item.product.id, -1)}
+                            className="w-5.5 h-5.5 rounded-md hover:bg-stone-50 flex items-center justify-center text-stone-500 cursor-pointer text-[10px] border-0 bg-transparent active:scale-90"
+                            title="Kurang"
+                          >
+                            <Minus className="w-2.5 h-2.5" />
+                          </button>
+                          <span className="w-5 text-center text-xs font-extrabold font-mono text-stone-850">{item.quantity}</span>
+                          <button
+                            onClick={() => handleUpdateQuantity(item.product.id, 1)}
+                            className="w-5.5 h-5.5 rounded-md hover:bg-stone-50 flex items-center justify-center text-stone-500 cursor-pointer text-[10px] border-0 bg-transparent active:scale-90"
+                            title="Tambah"
+                          >
+                            <Plus className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => handleRemoveFromCart(item.product.id)}
+                          className="p-1.5 text-stone-400 hover:text-rose-500 hover:bg-rose-50/50 rounded-lg transition-colors cursor-pointer border-0 bg-transparent active:scale-90"
+                          title="Hapus Item"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer Summary & Checkout */}
+              {cartItems.length > 0 && (
+                <div className="p-5 border-t border-stone-100 bg-stone-50/40 space-y-4 text-left">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-bold text-stone-600">Total Belanja:</span>
+                    <span className="font-mono font-black text-stone-950 text-base">
+                      Rp {cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleCheckout}
+                    className="w-full bg-gradient-to-r from-[#A98436] to-[#D3B674] hover:from-[#c29f2e] hover:to-[#A98436] text-stone-950 font-black py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all shadow-md uppercase tracking-wider text-xs border-0"
+                  >
+                    <div className="w-4 h-4 relative flex items-center justify-center text-[13px] leading-none">
+                      🛒
+                    </div>
+                    Kirim Pembelian via WhatsApp
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Render Single Micro Toast Dialog */}
       {toast && (
         <Toast 
@@ -620,6 +1125,19 @@ export default function App() {
           onClose={() => setToast(null)} 
         />
       )}
+
+      {/* Global Brand Ambassador Alya */}
+      <AlyaAmbassador 
+        activeTab={activeTab} 
+        userProfile={userProfile} 
+        onNavigate={setActiveTab} 
+        onShowToast={showToast} 
+        isOpen={isAlyaOpen}
+        onClose={() => setIsAlyaOpen(false)}
+        cartItems={cartItems}
+        setCartItems={setCartItems}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
     </Layout>
   );
 }

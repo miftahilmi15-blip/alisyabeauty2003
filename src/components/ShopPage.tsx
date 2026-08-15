@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Box, ShoppingCart, Percent, ShieldCheck, Sparkles, CheckCircle } from 'lucide-react';
+import { ShoppingBag, Box, ShoppingCart, Percent, X, Plus, Minus, Trash2 } from 'lucide-react';
 import { fetchProducts } from '../services/dataService';
-import { Product } from '../types';
+import { Product, UserProfile, CartItem } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ShopPageProps {
+  userProfile: UserProfile | null;
   onShowToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  cartItems: CartItem[];
+  setCartItems: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
+  searchQuery?: string;
 }
 
-export default function ShopPage({ onShowToast }: ShopPageProps) {
+export default function ShopPage({ 
+  userProfile, 
+  onShowToast,
+  cartItems,
+  setCartItems,
+  isCartOpen,
+  setIsCartOpen,
+  searchQuery = ""
+}: ShopPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,52 +40,39 @@ export default function ShopPage({ onShowToast }: ShopPageProps) {
     loadData();
   }, []);
 
-  const handleBuy = (name: string) => {
-    onShowToast(`🛍️ ${name} ditambahkan ke keranjang! Hubungi WhatsApp kami untuk pengiriman.`, "success");
-    
-    // Auto-generate WhatsApp checkout text
-    const checkoutMessage = `Assalamu'alaikum Alisya Beauty Admin, saya ingin memesan barang butik berikut:
-
-Produk:
-${name}
-
-Mohon konfirmasi ketersediaan stok & ongkos kirim. Terima kasih!`;
-
-    const adminWhatsApp = "628123456789";
-    const waURL = `https://api.whatsapp.com/send?phone=${adminWhatsApp}&text=${encodeURIComponent(checkoutMessage)}`;
-    
-    setTimeout(() => {
-      window.open(waURL, '_blank');
-    }, 1100);
+  // Cart Helper Functions
+  const handleAddToCart = (product: Product) => {
+    setCartItems(prev => {
+      const existing = prev.find(item => item.product.id === product.id);
+      if (existing) {
+        onShowToast(`✨ Jumlah "${product.name}" ditambah di keranjang!`, "success");
+        return prev.map(item => 
+          item.product.id === product.id 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        );
+      }
+      onShowToast(`🛍️ "${product.name}" dimasukkan ke keranjang!`, "success");
+      return [...prev, { product, quantity: 1 }];
+    });
   };
 
-  return (
-    <div className="space-y-6 pb-20 text-stone-800 animate-fade-in-up text-left">
-      {/* Header */}
-      <div className="border-b border-stone-150 pb-4">
-        <span className="text-[10px] text-gold-600 uppercase tracking-widest font-black block">Alisya Boutique Shop</span>
-        <h2 className="text-2xl md:text-3xl font-serif font-bold text-stone-900 flex items-center gap-2 mt-0.5">
-          <ShoppingBag className="w-5.5 h-5.5 text-gold-500" /> Produk Perawatan Premium
-        </h2>
-        <p className="text-xs text-stone-650 mt-1.5 max-w-xl font-sans leading-relaxed font-light">
-          Hadirkan rahasia perawatan salon Muslimah ke rumah Anda. Rangkaian produk organik halal berizin BPOM, wangi tahan lama, serta ramah untuk pemakaian harian.
-        </p>
-      </div>
+  const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
-      {/* Info Badge */}
-      <div className="bg-stone-50 text-stone-800 rounded-2xl p-4.5 flex items-center gap-4 shadow-sm border border-stone-150 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-gold-500/5 blur-xl rounded-full" />
-        <ShieldCheck className="w-9 h-9 text-gold-550 shrink-0" />
-        <div className="space-y-0.5 font-sans">
-          <h4 className="text-xs font-black uppercase tracking-wider text-stone-950">Sertifikat Halal & Keaslian Teruji</h4>
-          <p className="text-[10px] text-stone-600 font-light leading-relaxed">
-            Semua produk berizin BPOM, aman untuk ibu hamil/menyusui, dan teruji klinis bebas karsinogenik, pewarna sintetis berat, serta alkohol.
-          </p>
-        </div>
-      </div>
+  const filteredProducts = products.filter(p => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) || 
+      (p.description && p.description.toLowerCase().includes(q))
+    );
+  });
+
+  return (
+    <div className="space-y-6 pb-20 text-stone-800 animate-fade-in-up text-left relative">
 
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center gap-3 bg-stone-50 rounded-3xl border border-stone-200">
+        <div className="py-20 flex flex-col items-center justify-center gap-3 bg-stone-50/50 rounded-3xl border border-stone-200">
           <div className="w-8 h-8 rounded-full border-2 border-gold-300 border-t-gold-600 animate-spin" />
           <span className="text-xs text-stone-500 font-medium font-sans">Mengambil list produk butik...</span>
         </div>
@@ -79,10 +81,15 @@ Mohon konfirmasi ketersediaan stok & ongkos kirim. Terima kasih!`;
           <Box className="w-8 h-8 text-stone-450 mx-auto mb-2" />
           <p className="text-sm text-stone-500 font-medium font-sans">Stok butik kosong sementara.</p>
         </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="text-center py-20 border border-dashed border-stone-200 bg-stone-50 rounded-2xl animate-fade-in">
+          <Box className="w-8 h-8 text-stone-400 mx-auto mb-2" />
+          <p className="text-sm text-stone-550 font-medium font-sans">Tidak ada produk yang cocok dengan pencarian Anda.</p>
+        </div>
       ) : (
         /* ADAPTIVE MULTI-COLUMN PRODUCTS GRID: 1 col on mobile, 2 cols on tablet, 3 cols on desktop */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <div 
               key={p.id}
               className="group bg-white rounded-3xl border border-stone-100 overflow-hidden shadow-sm hover:border-gold-300 transition-all duration-300 flex flex-col justify-between"
@@ -129,10 +136,10 @@ Mohon konfirmasi ketersediaan stok & ongkos kirim. Terima kasih!`;
                   </div>
                   
                   <button
-                    onClick={() => handleBuy(p.name)}
-                    className="w-full bg-gold-500 hover:bg-gold-400 text-neutral-950 text-xs font-black py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md uppercase tracking-wider"
+                    onClick={() => handleAddToCart(p)}
+                    className="w-full bg-gradient-to-r from-[#A98436] to-[#D3B674] hover:from-[#c29f2e] hover:to-[#A98436] text-stone-950 text-xs font-black py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md uppercase tracking-wider"
                   >
-                    <ShoppingCart className="w-3.5 h-3.5 text-neutral-950" /> Beli via WhatsApp
+                    <Plus className="w-3.5 h-3.5 text-neutral-950 stroke-[3.5]" /> Tambah Ke Keranjang
                   </button>
                 </div>
               </div>
@@ -140,6 +147,7 @@ Mohon konfirmasi ketersediaan stok & ongkos kirim. Terima kasih!`;
           ))}
         </div>
       )}
+
     </div>
   );
 }
