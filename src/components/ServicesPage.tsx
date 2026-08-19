@@ -88,7 +88,7 @@ export default function ServicesPage({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari perawatan (e.g. Creambath, Bekam, Laser)..."
+              placeholder="Cari treatment..."
               className="block w-full pl-9 pr-4 py-2.5 bg-white border border-[#A98436]/35 focus:border-[#A98436] hover:border-[#A98436]/55 rounded-xl text-xs placeholder-stone-400 text-stone-800 font-semibold focus:outline-none transition-colors shadow-xs"
             />
           </div>

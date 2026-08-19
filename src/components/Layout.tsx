@@ -378,7 +378,7 @@ export default function Layout({
                         onNavigate('home');
                       }
                     }}
-                    placeholder="Cari Hair Care, Treatment, Spa..."
+                    placeholder="Cari treatment..."
                     className="w-full h-[36px] bg-white border border-[#EBE7DF]/80 focus:border-[#A98436]/60 hover:border-stone-300 text-stone-900 rounded-full pl-9 pr-5 text-[11px] outline-none transition-all font-medium placeholder:font-normal placeholder:text-stone-400 shadow-3xs"
                   />
                   <Search className="w-3.5 h-3.5 text-[#A98436] absolute left-3 top-1/2 -translate-y-1/2 cursor-pointer" />
